@@ -1,1 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventario Reciclaje IA</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* --- ESTILOS TEMA INDUSTRIAL DE RECICLAJE --- */
+        body {
+            /* Fondo: Capa oscura semitransparente + Imagen local.
+               Busca 'fondo.png' en la misma carpeta que este archivo.
+            */
+            background: linear-gradient(rgba(30, 34, 38, 0.85), rgba(30, 34, 38, 0.85)),
+                        url('./fondo.png'); /* <--- AQUÍ ESTÁ EL CAMBIO */
+            background-size: cover;         
+            background-position: center;    
+            background-attachment: fixed;   
+            background-repeat: no-repeat;
+            min-height: 100vh;
+            color: #e0e0e0; 
+        }
 
+        .main-card {
+            margin-top: 40px;
+            /* Tarjetas ligeramente translúcidas */
+            background-color: rgba(255, 255, 255, 0.95); 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: #212529; 
+        }
+        
+        .main-card h3 {
+            font-weight: 700;
+            color: #343a40;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #webcam-container canvas {
+            border-radius: 8px;
+            width: 100%;
+            border: 4px solid #495057;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            margin-bottom: 15px;
+        }
+
+        .inventory-table {
+            margin-top: 20px;
+            background-color: white; 
+        }
+        
+        .table-dark {
+            --bs-table-bg: #2c3034; 
+            --bs-table-border-color: #495057;
+        }
+
+        .highlight-row {
+            background-color: #d1e7dd !important; 
+            font-weight: bold;
+            transition: background-color 0.5s ease-in-out;
+        }
+
+        .privacy-box {
+            background-color: #e9ecef;
+            border-left: 5px solid #6c757d; 
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 0.95em;
+            text-align: left;
+            color: #495057;
+        }
+        
+        #label-container > div {
+            margin-bottom: 5px;
+            font-weight: 600;
+            background: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 4px;
+            border-left: 4px solid #adb5bd;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container pb-5">
+        <div class="row justify-content-center">
+            
+            <div class="col-md-6">
+                <div class="card main-card p-4">
+                    <h3 class="text-center mb-4">♻️ Escáner de Reciclaje</h3>
+                    
+                    <div id="initial-interface">
+                        <div class="privacy-box">
+                            <strong>🔒 Protocolo de Seguridad:</strong><br>
+                            Se requiere acceso a la cámara para la identificación de materiales. 
+                            El procesamiento es local y no se transmiten datos externos.
+                        </div>
+
+                        <div class="d-grid gap-2 mb-3">
+                            <button class="btn btn-primary btn-lg fw-bold" type="button" onclick="init()" id="start-btn">
+                                ✅ Activar Sistema de Escaneo
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="webcam-container" class="text-center" style="display:none;"></div>
+
+                    <div id="controls-container" class="d-grid gap-2" style="display:none;">
+                        <button class="btn btn-success btn-lg fw-bold" onclick="snap()" id="snap-btn">
+                            📸 Capturar Material
+                        </button>
+                        <button class="btn btn-secondary btn-lg fw-bold" onclick="resume()" id="resume-btn" style="display:none;">
+                            🔄 Siguiente Elemento
+                        </button>
+                    </div>
+
+                    <div id="label-container" class="mt-3"></div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card main-card p-4">
+                    <h3 class="text-center mb-4">📋 Registro de Materiales</h3>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover inventory-table text-center border align-middle">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th class="py-3">Tipo de Material</th>
+                                    <th class="py-3">Cantidad (Unidades)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-body">
+                                </tbody>
+                            <tfoot class="table-light fw-bold">
+                                <tr>
+                                    <td class="py-3">TOTAL ELEMENTOS</td>
+                                    <td class="py-3 fs-5" id="total-count">0</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <button class="btn btn-outline-danger btn-sm fw-bold" onclick="resetInventory()">
+                            🗑️ Purgar Datos
+                        </button>
+                        <button class="btn btn-dark btn-sm fw-bold" onclick="downloadCSV()">
+                            📊 Exportar Reporte (.csv)
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    
+    <script type="text/javascript">
+        // TU URL DE TEACHABLE MACHINE
+        const URL = "https://teachablemachine.withgoogle.com/models/vfV0Uev2L/"; 
+
+        let model, webcam, labelContainer, maxPredictions;
+        let requestID; 
+        let isPaused = false;
+        let inventory = {}; 
+
+        async function init() {
+            const btn = document.getElementById("start-btn");
+            btn.innerText = "⏳ Inicializando sensores ópticos...";
+            btn.disabled = true;
+
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            try {
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+
+                if (Object.keys(inventory).length === 0) {
+                     const classes = model.getClassLabels();
+                     classes.forEach(c => inventory[c] = 0);
+                }
+                updateInventoryTable();
+
+                const flip = true; 
+                webcam = new tmImage.Webcam(300, 300, flip); 
+                await webcam.setup(); 
+                await webcam.play();
+                
+                // === INTERCAMBIO DE INTERFAZ ===
+                document.getElementById("initial-interface").style.display = "none";
+                document.getElementById("webcam-container").style.display = "block";
+                document.getElementById("webcam-container").appendChild(webcam.canvas);
+                document.getElementById("controls-container").style.display = "grid";
+
+                labelContainer = document.getElementById("label-container");
+                labelContainer.innerHTML = "";
+                for (let i = 0; i < maxPredictions; i++) { 
+                    labelContainer.appendChild(document.createElement("div"));
+                }
+
+                loop(); 
+            } catch (e) {
+                alert("Error de sistema: No se detecta la cámara. Verifique permisos.");
+                console.error(e);
+                btn.disabled = false;
+                btn.innerText = "Reintentar";
+            }
+        }
+
+        async function loop() {
+            webcam.update(); 
+            await predict();
+            if (!isPaused) {
+                requestID = window.requestAnimationFrame(loop);
+            }
+        }
+
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            for (let i = 0; i < maxPredictions; i++) {
+                const probability = (prediction[i].probability * 100).toFixed(1) + "%";
+                const classPrediction = `<span>${prediction[i].className}</span> <span style="float:right">${probability}</span>`;
+                labelContainer.childNodes[i].innerHTML = classPrediction;
+                 labelContainer.childNodes[i].style.background = `linear-gradient(90deg, #d1e7dd ${probability}, #e9ecef ${probability})`;
+            }
+        }
+
+        async function snap() {
+            isPaused = true; 
+            window.cancelAnimationFrame(requestID); 
+            
+            const prediction = await model.predict(webcam.canvas);
+            let highestProb = 0;
+            let bestClass = "";
+
+            for (let i = 0; i < maxPredictions; i++) {
+                if (prediction[i].probability > highestProb) {
+                    highestProb = prediction[i].probability;
+                    bestClass = prediction[i].className;
+                }
+            }
+
+            // Umbral de confianza (ajustable)
+            if (highestProb > 0.65) {
+                inventory[bestClass]++; 
+                updateInventoryTable(bestClass); 
+            } else {
+                alert("⚠️ Lectura baja o material no identificado. Por favor, acerque el objeto o mejore la iluminación.");
+                resume(); 
+            }
+
+            document.getElementById("snap-btn").style.display = "none";
+            document.getElementById("resume-btn").style.display = "block";
+        }
+
+        function resume() {
+            isPaused = false;
+            document.getElementById("snap-btn").style.display = "block";
+            document.getElementById("resume-btn").style.display = "none";
+            document.querySelectorAll('.highlight-row').forEach(row => row.classList.remove('highlight-row'));
+            loop(); 
+        }
+
+        function updateInventoryTable(lastUpdatedClass = null) {
+            const tbody = document.getElementById("inventory-body");
+            tbody.innerHTML = ""; 
+            let totalItems = 0;
+
+            for (const [key, value] of Object.entries(inventory)) {
+                let row = document.createElement("tr");
+                if (key === lastUpdatedClass) {
+                    row.classList.add("highlight-row");
+                }
+                // Icono de reciclaje
+                row.innerHTML = `<td class="text-start"><span class="me-2">♻️</span>${key}</td><td class="fw-bold fs-5">${value}</td>`;
+                tbody.appendChild(row);
+                totalItems += value;
+            }
+            document.getElementById("total-count").innerText = totalItems;
+        }
+
+        function resetInventory() {
+            if(confirm("ADVERTENCIA: ¿Está seguro de purgar todos los datos del registro actual?")) {
+                for (const key in inventory) { inventory[key] = 0; }
+                updateInventoryTable();
+            }
+        }
+
+        function downloadCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "\uFEFF"; 
+            csvContent += "Tipo Material,Cantidad Registrada\n"; 
+            for (const [key, value] of Object.entries(inventory)) {
+                csvContent += `${key},${value}\n`;
+            }
+            var encodedUri = encodeURI(csvContent);
+            var link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            const date = new Date().toISOString().slice(0,10);
+            link.setAttribute("download", `Reporte_Reciclaje_${date}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
