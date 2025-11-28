@@ -1,4 +1,4 @@
-# ♻️ Sistema de Inventario de Reciclaje con IA
+# ♻️ Sistema de Inventario de Reciclaje
 
 Este proyecto es una aplicación web de visión por computadora diseñada para la identificación y conteo automático de materiales de reciclaje en entornos industriales. Utiliza inteligencia artificial (**TensorFlow.js**) para funcionar directamente en el navegador, permitiendo una gestión de inventario ágil y moderna.
 
@@ -9,6 +9,7 @@ Este proyecto es una aplicación web de visión por computadora diseñada para l
 No es necesario instalar código ni configurar servidores. Puedes ejecutar el sistema directamente desde el siguiente enlace:
 
 ### [🔗 CLIC AQUÍ PARA ABRIR EL ESCÁNER](https://alets125.github.io/proyecto_big_data/)
+### [🔗📹 Video Desmostración del uso la Aplicación](https://youtu.be/T7_Fl2_1RRs)
 
 > **Nota:** El sistema requiere acceso a la cámara web para funcionar. Asegúrate de ejecutarlo en un dispositivo con cámara (Laptop, PC o Celular) y permitir los permisos en el navegador.
 
